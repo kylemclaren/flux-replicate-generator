@@ -7,7 +7,8 @@ import path from "path";
 
 // Initialize Replicate with API token from environment variables
 const replicate = new Replicate({
-    auth: process.env.REPLICATE_API_TOKEN,
+    auth: process.env.REPLICATE_API_TOKEN || "",
+    baseUrl: process.env.REPLICATE_BASE_URL,
 });
 
 // Function to download a file from a given URL and save it to an output path
@@ -114,22 +115,27 @@ const server = serve({
 
                 const input = {
                     prompt: prompt,
-                    output_quality: 100,
-                    disable_safety_checker: true,
                     aspect_ratio: aspectRatio,
+                    output_format: "png",
+                    guidance_scale: 3.5,
+                    num_inference_steps: 50,
+                    max_sequence_length: 512
                 };
-
+                const randomString = Math.random().toString(36).substring(2, 15);
                 // Use the correct replicate.run() method for the model
-                const output = await replicate.run("black-forest-labs/flux-schnell", { input });
-                console.log("Output:", output);
+                let prediction = await replicate.predictions.create({
+                    id: randomString,
+                    version: "v1",
+                    input: input,
+                });
+                prediction = await replicate.wait(prediction);
 
                 // Assuming output is an array with the URL at the first position
-                if (!Array.isArray(output) || !output[0]) {
+                if (!Array.isArray(prediction.output) || !prediction.output[0]) {
                     throw new Error("Unexpected output format");
                 }
 
-                const imageUrl = output[0] as string;
-                console.log("Output URL:", imageUrl);
+                const imageUrl = prediction.output[0] as string;
 
                 // Ensure homeDir is defined for non-debug cases
                 const homeDir = process.env.HOME || process.env.USERPROFILE;
@@ -162,4 +168,4 @@ const server = serve({
 });
 
 // Log the server's listening port
-console.log(`Server is running on http://localhost:${server.port}`);
+console.log(`Server is running on http://0.0.0.0:${server.port}`);
